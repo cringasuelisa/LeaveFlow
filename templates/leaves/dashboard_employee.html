@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load leave_extras %}
+{% block title %}Dashboard - LeaveFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div class="d-flex align-items-center gap-3">
+    {% with user_obj=user %}
+      <span class="lf-avatar lf-avatar-lg" style="background:{{ user|user_color }};">{{ user|user_initials }}</span>
+    {% endwith %}
+    <div>
+      <h2 class="mb-0">Buna, {{ user.first_name|default:user.username }}!</h2>
+      <p class="text-muted mb-0">{{ user.department|default:'Bine ai venit pe LeaveFlow.' }}</p>
+    </div>
+  </div>
+  <a href="{% url 'leave_create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-circle"></i> Cerere noua
+  </a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="lf-stat">
+      <div class="ico ico-blue"><i class="bi bi-collection"></i></div>
+      <div><div class="num">{{ stats.total }}</div><div class="lbl">Total cereri</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="lf-stat">
+      <div class="ico ico-amber"><i class="bi bi-hourglass-split"></i></div>
+      <div><div class="num">{{ stats.pending }}</div><div class="lbl">In asteptare</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="lf-stat">
+      <div class="ico ico-green"><i class="bi bi-check2-circle"></i></div>
+      <div><div class="num">{{ stats.approved }}</div><div class="lbl">Aprobate</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="lf-stat">
+      <div class="ico ico-red"><i class="bi bi-x-circle"></i></div>
+      <div><div class="num">{{ stats.rejected }}</div><div class="lbl">Respinse</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="lf-card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0"><i class="bi bi-list-task text-primary"></i> Cererile tale recente</h5>
+      <a href="{% url 'leave_list' %}" class="small">Vezi toate</a>
+    </div>
+    {% if my_requests %}
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead class="table-light">
+            <tr><th>#</th><th>Tip</th><th>Perioada</th><th>Zile</th><th>Status</th><th>Trimisa</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for leave in my_requests %}
+              <tr>
+                <td class="text-muted">#{{ leave.id }}</td>
+                <td>{{ leave.get_leave_type_display }}</td>
+                <td><span class="text-muted small">{{ leave.start_date|date:"d M" }} - {{ leave.end_date|date:"d M Y" }}</span></td>
+                <td><strong>{{ leave.days }}</strong></td>
+                <td>{% include "leaves/_status_badge.html" %}</td>
+                <td><span class="text-muted small">{{ leave.created_at|date:"d M H:i" }}</span></td>
+                <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'leave_detail' leave.pk %}">Detalii</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="icon"><i class="bi bi-clipboard-plus"></i></div>
+        <div>Nu ai trimis nicio cerere inca.</div>
+        <a href="{% url 'leave_create' %}" class="btn btn-primary mt-3"><i class="bi bi-plus-circle"></i> Creeaza prima ta cerere</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

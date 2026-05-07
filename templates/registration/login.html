@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Autentificare - LeaveFlow{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h3 class="mb-3"><i class="bi bi-box-arrow-in-right"></i> Autentificare</h3>
+        {% if form.errors %}
+          <div class="alert alert-danger">Utilizator sau parola incorecte.</div>
+        {% endif %}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">Utilizator</label>
+            <input type="text" name="username" class="form-control" autofocus required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Parola</label>
+            <input type="password" name="password" class="form-control" required>
+          </div>
+          <button class="btn btn-primary w-100" type="submit">Intra in cont</button>
+          <input type="hidden" name="next" value="{{ next }}">
+        </form>
+        <hr>
+        <p class="text-muted small mb-0">
+          Nu ai cont? <a href="{% url 'register' %}">Inregistreaza-te</a>.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+Salut,
+
+{{ employee }} a trimis o cerere noua de concediu pe LeaveFlow.
+
+Tip:     {{ request_obj.get_leave_type_display }}
+Perioada: {{ request_obj.start_date|date:"d.m.Y" }} - {{ request_obj.end_date|date:"d.m.Y" }} ({{ request_obj.days }} zile)
+Motiv:    {{ request_obj.reason }}
+
+Vezi cererea: {{ url }}
+
+-- LeaveFlow

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Respinge cererea #{{ leave.id }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-7">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h3 class="mb-3"><i class="bi bi-x-circle text-danger"></i> Respinge cererea #{{ leave.id }}</h3>
+        <p class="text-muted">{{ leave.employee }} - {{ leave.get_leave_type_display }} ({{ leave.start_date|date:"d.m.Y" }} - {{ leave.end_date|date:"d.m.Y" }})</p>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">{{ form.note.label }} <span class="text-danger">*</span></label>
+            {{ form.note }}
+            {% for e in form.note.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-danger" type="submit">Respinge cererea</button>
+            <a class="btn btn-outline-secondary" href="{% url 'leave_detail' leave.pk %}">Anuleaza</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

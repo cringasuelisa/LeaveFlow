@@ -1,0 +1,10 @@
+Salut {{ employee.first_name|default:employee.username }},
+
+Cererea ta de concediu (#{{ request_obj.id }}) a fost {% if is_approved %}APROBATA{% else %}RESPINSA{% endif %}.
+
+Perioada: {{ request_obj.start_date|date:"d.m.Y" }} - {{ request_obj.end_date|date:"d.m.Y" }} ({{ request_obj.days }} zile)
+{% if request_obj.decision_note %}Nota manager: {{ request_obj.decision_note }}{% endif %}
+
+Detalii: {{ url }}
+
+-- LeaveFlow

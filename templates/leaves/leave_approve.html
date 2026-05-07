@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Aproba cererea #{{ leave.id }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h3 class="mb-3"><i class="bi bi-check2-circle text-success"></i> Aproba cererea #{{ leave.id }}</h3>
+        <p class="text-muted">{{ leave.employee }} - {{ leave.get_leave_type_display }} ({{ leave.start_date|date:"d.m.Y" }} - {{ leave.end_date|date:"d.m.Y" }}, {{ leave.days }} zile)</p>
+
+        <form method="post" enctype="multipart/form-data" id="approve-form" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <div class="mb-3">
+            <label class="form-label">{{ form.note.label }}</label>
+            {{ form.note }}
+          </div>
+
+          <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-draw" type="button">
+                <i class="bi bi-pencil"></i> Deseneaza semnatura
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-upload" type="button">
+                <i class="bi bi-upload"></i> Incarca imagine
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content">
+            <div class="tab-pane fade show active" id="tab-draw">
+              <p class="text-muted small mb-2">Semneaza cu mouse-ul sau cu degetul (touch).</p>
+              <canvas id="sig-canvas" class="signature-canvas w-100" height="180"></canvas>
+              <div class="mt-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="sig-clear">
+                  <i class="bi bi-eraser"></i> Sterge
+                </button>
+              </div>
+              {{ form.signature_data }}
+            </div>
+
+            <div class="tab-pane fade" id="tab-upload">
+              <label class="form-label">{{ form.signature_image.label }}</label>
+              {{ form.signature_image }}
+              {% for e in form.signature_image.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button class="btn btn-success" type="submit">
+              <i class="bi bi-check-circle"></i> Aproba si semneaza
+            </button>
+            <a class="btn btn-outline-secondary" href="{% url 'leave_detail' leave.pk %}">Anuleaza</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  const canvas = document.getElementById('sig-canvas');
+  const ctx = canvas.getContext('2d');
+  const dataInput = document.querySelector('input[name="signature_data"]');
+  const form = document.getElementById('approve-form');
+  let drawing = false, hasInk = false;
+
+  function resize() {
+    const ratio = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * ratio;
+    canvas.height = rect.height * ratio;
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#222';
+  }
+  resize();
+  window.addEventListener('resize', () => { const data = canvas.toDataURL(); resize(); });
+
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return [t.clientX - r.left, t.clientY - r.top];
+  }
+  function start(e) { drawing = true; hasInk = true; const [x, y] = pos(e); ctx.beginPath(); ctx.moveTo(x, y); e.preventDefault(); }
+  function move(e) { if (!drawing) return; const [x, y] = pos(e); ctx.lineTo(x, y); ctx.stroke(); e.preventDefault(); }
+  function end() { drawing = false; }
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  canvas.addEventListener('mouseup', end);
+  canvas.addEventListener('mouseleave', end);
+  canvas.addEventListener('touchstart', start);
+  canvas.addEventListener('touchmove', move);
+  canvas.addEventListener('touchend', end);
+
+  document.getElementById('sig-clear').addEventListener('click', () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height); hasInk = false; dataInput.value = '';
+  });
+
+  form.addEventListener('submit', () => {
+    if (hasInk) dataInput.value = canvas.toDataURL('image/png');
+  });
+})();
+</script>
+{% endblock %}

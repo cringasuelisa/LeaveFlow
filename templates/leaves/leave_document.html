@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Document - Cerere #{{ leave.id }}{% endblock %}
+
+{% block content %}
+<div class="text-end mb-2 no-print">
+  <button onclick="window.print()" class="btn btn-outline-primary btn-sm">
+    <i class="bi bi-printer"></i> Tipareste
+  </button>
+  <a href="{% url 'leave_pdf' leave.pk %}" target="_blank" class="btn btn-outline-primary btn-sm">
+    <i class="bi bi-filetype-pdf"></i> Descarca PDF
+  </a>
+  <a href="{% url 'leave_detail' leave.pk %}" class="btn btn-outline-secondary btn-sm">Inapoi</a>
+</div>
+
+<div class="doc-paper">
+  <div class="text-center mb-4">
+    <h2 class="text-uppercase">Cerere de concediu</h2>
+    <div class="text-muted">Nr. {{ leave.id }} / {{ leave.created_at|date:"d.m.Y" }}</div>
+  </div>
+
+  <p>
+    Subsemnatul/a <strong>{{ leave.employee.get_full_name|default:leave.employee.username }}</strong>,
+    departamentul <strong>{{ leave.employee.department|default:'-' }}</strong>,
+    prin prezenta solicit acordarea unui concediu dupa cum urmeaza:
+  </p>
+
+  <table class="table table-bordered">
+    <tbody>
+      <tr><th style="width:35%">Tip concediu</th><td>{{ leave.get_leave_type_display }}</td></tr>
+      <tr><th>Perioada</th><td>{{ leave.start_date|date:"d.m.Y" }} - {{ leave.end_date|date:"d.m.Y" }}</td></tr>
+      <tr><th>Numar zile</th><td>{{ leave.days }}</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Motiv:</strong></p>
+  <p>{{ leave.reason|linebreaksbr }}</p>
+
+  {% if leave.decision_note %}
+    <p><strong>Nota manager:</strong></p>
+    <p>{{ leave.decision_note|linebreaksbr }}</p>
+  {% endif %}
+
+  <div class="row mt-5">
+    <div class="col-6">
+      <div class="text-muted small">Data</div>
+      <div class="border-bottom pb-1">{{ leave.created_at|date:"d.m.Y" }}</div>
+      <div class="text-muted small mt-3">Semnatura solicitant</div>
+      <div class="border-bottom pb-4">{{ leave.employee.get_full_name|default:leave.employee.username }}</div>
+    </div>
+    <div class="col-6 text-end">
+      <div class="text-muted small">Aprobat de</div>
+      <div class="border-bottom pb-1">{{ leave.decided_by|default:'-' }}</div>
+      <div class="text-muted small mt-3">Semnatura</div>
+      {% if leave.signature.image %}
+        <div class="d-inline-block">
+          <img src="{{ leave.signature.image.url }}" alt="Semnatura"
+               style="max-height: 90px; background:#fff;">
+        </div>
+      {% else %}
+        <div class="border-bottom pb-4"></div>
+      {% endif %}
+      <div class="text-muted small mt-1">{{ leave.decided_at|date:"d.m.Y H:i"|default:'' }}</div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load leave_extras %}
+{% block title %}Calendar concedii - LeaveFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h2 class="mb-0"><i class="bi bi-calendar3 text-primary"></i> Calendar concedii</h2>
+    <p class="text-muted mb-0 small">Vizualizare cu toate concediile aprobate. Fiecare angajat are o culoare diferita.</p>
+  </div>
+  <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i> Inapoi la dashboard
+  </a>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-9">
+    <div class="lf-card">
+      <div class="card-body">
+        <div id="calendar"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3">
+    <div class="lf-card">
+      <div class="card-body">
+        <h6 class="text-muted text-uppercase small mb-3">Legenda angajati</h6>
+        {% if legend_users %}
+          <div class="d-flex flex-column gap-2">
+            {% for u in legend_users %}
+              <div class="d-flex align-items-center gap-2">
+                <span class="d-inline-block rounded-circle" style="width:14px;height:14px;background:{{ u|user_color }};"></span>
+                <span class="small">{{ u.get_full_name|default:u.username }}</span>
+                {% if u.department %}<span class="text-muted small ms-auto">{{ u.department }}</span>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-muted small">Nicio cerere aprobata inca.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const el = document.getElementById('calendar');
+  const calendar = new FullCalendar.Calendar(el, {
+    initialView: 'dayGridMonth',
+    locale: 'ro',
+    firstDay: 1,
+    height: 'auto',
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'dayGridMonth,timeGridWeek,listMonth'
+    },
+    buttonText: {
+      today: 'Azi',
+      month: 'Luna',
+      week: 'Saptamana',
+      list: 'Lista'
+    },
+    dayMaxEvents: 3,
+    eventDisplay: 'block',
+    events: '{% url "leave_calendar_events" %}',
+    eventClick: function(info) {
+      info.jsEvent.preventDefault();
+      if (info.event.url) {
+        window.location.href = info.event.url;
+      }
+    },
+    eventDidMount: function(info) {
+      const props = info.event.extendedProps;
+      const tip = `${props.employee} - ${props.type}\n${props.days} zile`;
+      info.el.setAttribute('title', tip);
+    }
+  });
+  calendar.render();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% if leave.status == 'pending' %}
+  <span class="badge-status badge-status-pending"><i class="bi bi-hourglass-split"></i> {{ leave.get_status_display }}</span>
+{% elif leave.status == 'approved' %}
+  <span class="badge-status badge-status-approved"><i class="bi bi-check-circle-fill"></i> {{ leave.get_status_display }}</span>
+{% elif leave.status == 'rejected' %}
+  <span class="badge-status badge-status-rejected"><i class="bi bi-x-circle-fill"></i> {{ leave.get_status_display }}</span>
+{% endif %}

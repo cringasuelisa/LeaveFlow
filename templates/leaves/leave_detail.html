@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load leave_extras %}
+{% block title %}Cerere #{{ leave.id }} - LeaveFlow{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="lf-card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-3">
+            {% with user_obj=leave.employee %}
+              <span class="lf-avatar lf-avatar-lg" style="background:{{ leave.employee|user_color }};">{{ leave.employee|user_initials }}</span>
+            {% endwith %}
+            <div>
+              <h3 class="mb-0">Cerere #{{ leave.id }}</h3>
+              <div class="text-muted">{{ leave.employee.get_full_name|default:leave.employee.username }} - {{ leave.employee.department|default:'-' }}</div>
+            </div>
+          </div>
+          {% include "leaves/_status_badge.html" %}
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-4"><div class="text-muted small">Tip concediu</div><div><strong>{{ leave.get_leave_type_display }}</strong></div></div>
+          <div class="col-md-4"><div class="text-muted small">Perioada</div><div><strong>{{ leave.start_date|date:"d M Y" }} - {{ leave.end_date|date:"d M Y" }}</strong></div></div>
+          <div class="col-md-4"><div class="text-muted small">Numar zile</div><div><strong>{{ leave.days }}</strong></div></div>
+          <div class="col-md-4"><div class="text-muted small">Trimisa la</div><div>{{ leave.created_at|date:"d M Y H:i" }}</div></div>
+          {% if leave.decided_at %}
+            <div class="col-md-4"><div class="text-muted small">Decisa la</div><div>{{ leave.decided_at|date:"d M Y H:i" }}</div></div>
+            <div class="col-md-4"><div class="text-muted small">Decisa de</div><div>{{ leave.decided_by }}</div></div>
+          {% endif %}
+        </div>
+
+        <h6 class="text-uppercase small text-muted">Motiv</h6>
+        <p>{{ leave.reason|linebreaksbr }}</p>
+
+        {% if leave.attachment %}
+          <h6 class="text-uppercase small text-muted">Atasament</h6>
+          <a href="{{ leave.attachment.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-paperclip"></i> Deschide atasament
+          </a>
+        {% endif %}
+
+        {% if leave.decision_note %}
+          <h6 class="text-uppercase small text-muted mt-3">Nota manager</h6>
+          <div class="p-3 bg-light rounded">{{ leave.decision_note|linebreaksbr }}</div>
+        {% endif %}
+
+        {% if leave.is_approved and leave.signature.image %}
+          <h6 class="text-uppercase small text-muted mt-3">Semnatura manager</h6>
+          <img src="{{ leave.signature.image.url }}" alt="Semnatura"
+               style="max-height:120px; background:#fff; padding:6px; border:1px solid var(--lf-border); border-radius:8px;">
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="lf-card">
+      <div class="card-body">
+        <h6 class="text-uppercase small text-muted">Actiuni</h6>
+        <div class="d-grid gap-2">
+          {% if user.is_manager or user.is_admin_role or user.is_superuser %}
+            {% if leave.is_pending %}
+              <a class="btn btn-success" href="{% url 'leave_approve' leave.pk %}">
+                <i class="bi bi-check2-circle"></i> Aproba si semneaza
+              </a>
+              <a class="btn btn-outline-danger" href="{% url 'leave_reject' leave.pk %}">
+                <i class="bi bi-x-circle"></i> Respinge
+              </a>
+            {% endif %}
+          {% endif %}
+
+          {% if leave.is_approved %}
+            <a class="btn btn-outline-primary" href="{% url 'leave_document' leave.pk %}">
+              <i class="bi bi-file-earmark-text"></i> Document oficial
+            </a>
+            <a class="btn btn-outline-primary" href="{% url 'leave_pdf' leave.pk %}" target="_blank">
+              <i class="bi bi-filetype-pdf"></i> Descarca PDF
+            </a>
+          {% endif %}
+
+          <a class="btn btn-outline-secondary" href="{% url 'leave_list' %}">
+            <i class="bi bi-arrow-left"></i> Inapoi la lista
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

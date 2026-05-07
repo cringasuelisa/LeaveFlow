@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% load leave_extras %}
+{% block title %}Manager dashboard - LeaveFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div>
+    <h2 class="mb-0">Buna, {{ user.first_name|default:user.username }}!</h2>
+    <p class="text-muted mb-0">Iata ce se intampla in echipa ta astazi.</p>
+  </div>
+  <a href="{% url 'leave_calendar' %}" class="btn btn-primary">
+    <i class="bi bi-calendar3"></i> Deschide calendarul
+  </a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="lf-stat">
+      <div class="ico ico-blue"><i class="bi bi-collection"></i></div>
+      <div><div class="num">{{ stats.total }}</div><div class="lbl">Total cereri</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="lf-stat">
+      <div class="ico ico-amber"><i class="bi bi-hourglass-split"></i></div>
+      <div><div class="num">{{ stats.pending }}</div><div class="lbl">In asteptare</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="lf-stat">
+      <div class="ico ico-green"><i class="bi bi-check2-circle"></i></div>
+      <div><div class="num">{{ stats.approved }}</div><div class="lbl">Aprobate</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="lf-stat">
+      <div class="ico ico-red"><i class="bi bi-x-circle"></i></div>
+      <div><div class="num">{{ stats.rejected }}</div><div class="lbl">Respinse</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="lf-card mb-3">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="mb-0"><i class="bi bi-hourglass-split text-warning"></i> De aprobat</h5>
+          <span class="badge bg-warning-subtle text-warning-emphasis">{{ stats.pending }}</span>
+        </div>
+        {% if pending_requests %}
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Angajat</th><th>Tip</th><th>Perioada</th><th>Zile</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for leave in pending_requests %}
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        {% with user_obj=leave.employee %}{% include "leaves/_avatar.html" %}{% endwith %}
+                        <div>
+                          <div style="font-weight:600;">{{ leave.employee.get_full_name|default:leave.employee.username }}</div>
+                          <div class="text-muted small">{{ leave.employee.department|default:'-' }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{{ leave.get_leave_type_display }}</td>
+                    <td><span class="text-muted small">{{ leave.start_date|date:"d M" }} - {{ leave.end_date|date:"d M Y" }}</span></td>
+                    <td><strong>{{ leave.days }}</strong></td>
+                    <td class="text-end">
+                      <a class="btn btn-sm btn-success" href="{% url 'leave_approve' leave.pk %}" title="Aproba"><i class="bi bi-check-lg"></i></a>
+                      <a class="btn btn-sm btn-outline-danger" href="{% url 'leave_reject' leave.pk %}" title="Respinge"><i class="bi bi-x-lg"></i></a>
+                      <a class="btn btn-sm btn-outline-secondary" href="{% url 'leave_detail' leave.pk %}" title="Detalii"><i class="bi bi-eye"></i></a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <div class="icon"><i class="bi bi-cup-hot"></i></div>
+            <div>Nu ai nimic de aprobat. Bun-venit la o cafea linistita!</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="lf-card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="mb-0"><i class="bi bi-clock-history text-primary"></i> Decizii recente</h5>
+          <a href="{% url 'leave_list' %}" class="small">Toate cererile</a>
+        </div>
+        {% if recent_decisions %}
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead class="table-light">
+                <tr><th>Angajat</th><th>Tip</th><th>Status</th><th>Decisa</th><th></th></tr>
+              </thead>
+              <tbody>
+                {% for leave in recent_decisions %}
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        {% with user_obj=leave.employee %}{% include "leaves/_avatar.html" %}{% endwith %}
+                        {{ leave.employee.get_full_name|default:leave.employee.username }}
+                      </div>
+                    </td>
+                    <td>{{ leave.get_leave_type_display }}</td>
+                    <td>{% include "leaves/_status_badge.html" %}</td>
+                    <td><span class="text-muted small">{{ leave.decided_at|date:"d M H:i" }}</span></td>
+                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'leave_detail' leave.pk %}">Detalii</a></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <div class="icon"><i class="bi bi-inbox"></i></div>
+            <div>Nicio decizie inca.</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="lf-card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="mb-0"><i class="bi bi-calendar-event text-primary"></i> Calendar concedii</h5>
+          <a href="{% url 'leave_calendar' %}" class="small">Mareste</a>
+        </div>
+        <p class="text-muted small mb-2">Concedii aprobate, fiecare angajat cu propria culoare.</p>
+        <div id="mini-calendar"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const el = document.getElementById('mini-calendar');
+  if (!el) return;
+  const calendar = new FullCalendar.Calendar(el, {
+    initialView: 'dayGridMonth',
+    locale: 'ro',
+    firstDay: 1,
+    height: 460,
+    headerToolbar: { left: 'prev,next', center: 'title', right: 'today' },
+    buttonText: { today: 'Azi' },
+    dayMaxEvents: 2,
+    events: '{% url "leave_calendar_events" %}',
+    eventClick: function(info) {
+      info.jsEvent.preventDefault();
+      if (info.event.url) window.location.href = info.event.url;
+    }
+  });
+  calendar.render();
+});
+</script>
+{% endblock %}
