@@ -43,12 +43,17 @@
           <div class="mb-3">
             <label class="form-label">{{ form.attachment.label }}</label>
             {{ form.attachment }}
-            <div class="form-text">Optional. Documente justificative (PDF, JPG, PNG). Stocate in Cloudinary.</div>
-            {% for e in form.attachment.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            <div class="form-text">
+              <i class="bi bi-info-circle"></i>
+              Optional. Doar fisiere <strong>PDF</strong> sau <strong>DOCX</strong>,
+              maxim <strong>5 MB</strong>. Sunt stocate securizat in Cloudinary.
+            </div>
+            <div id="attach-warning" class="text-danger small mt-1" style="display:none;"></div>
+            {% for e in form.attachment.errors %}<div class="text-danger small mt-1"><i class="bi bi-exclamation-triangle-fill"></i> {{ e }}</div>{% endfor %}
           </div>
 
           <div class="d-flex gap-2 mt-4">
-            <button class="btn btn-primary" type="submit"><i class="bi bi-send"></i> Trimite cererea</button>
+            <button class="btn btn-primary" id="submit-btn" type="submit"><i class="bi bi-send"></i> Trimite cererea</button>
             <a class="btn btn-outline-secondary" href="{% url 'dashboard' %}">Anuleaza</a>
           </div>
         </form>
@@ -56,4 +61,71 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// --- Datele cererii: end_date >= start_date ---
+(function() {
+  const startInput = document.querySelector('input[type="date"][name="start_date"]');
+  const endInput = document.querySelector('input[type="date"][name="end_date"]');
+  if (!startInput || !endInput) return;
+
+  // Functie ce sincronizeaza min-ul lui end_date cu valoarea lui start_date
+  function syncEndMin() {
+    const v = startInput.value;
+    if (v) {
+      endInput.min = v;
+      // daca end era selectat dar e acum mai mic, il resetam la valoarea de start
+      if (endInput.value && endInput.value < v) {
+        endInput.value = v;
+      }
+    } else {
+      endInput.removeAttribute('min');
+    }
+  }
+
+  startInput.addEventListener('change', syncEndMin);
+  startInput.addEventListener('input', syncEndMin);
+  // sincronizeaza si la incarcarea paginii (in caz de form re-redat dupa eroare)
+  syncEndMin();
+})();
+
+// --- Validare atasament ---
+(function() {
+  const input = document.querySelector('input[type="file"][name="attachment"]');
+  const warning = document.getElementById('attach-warning');
+  const submit = document.getElementById('submit-btn');
+  if (!input) return;
+
+  const ALLOWED_EXT = ['.pdf', '.docx'];
+  const MAX_BYTES = 5 * 1024 * 1024;
+
+  input.addEventListener('change', function() {
+    warning.style.display = 'none';
+    warning.textContent = '';
+    submit.disabled = false;
+
+    const f = input.files && input.files[0];
+    if (!f) return;
+
+    const name = f.name.toLowerCase();
+    const ext = name.includes('.') ? '.' + name.split('.').pop() : '';
+    if (!ALLOWED_EXT.includes(ext)) {
+      warning.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Doar fisiere PDF sau DOCX sunt permise. Ai ales <strong>' + f.name + '</strong>.';
+      warning.style.display = 'block';
+      submit.disabled = true;
+      input.value = '';
+      return;
+    }
+    if (f.size > MAX_BYTES) {
+      const mb = (f.size / 1024 / 1024).toFixed(1);
+      warning.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Fisierul are ' + mb + ' MB - limita este 5 MB.';
+      warning.style.display = 'block';
+      submit.disabled = true;
+      input.value = '';
+    }
+  });
+})();
+</script>
 {% endblock %}

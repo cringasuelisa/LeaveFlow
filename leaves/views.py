@@ -101,7 +101,19 @@ class LeaveCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.employee = self.request.user
-        response = super().form_valid(form)
+        try:
+            response = super().form_valid(form)
+        except Exception as exc:
+            # Daca apare orice problema la upload (Cloudinary, retea, fisier corupt etc.)
+            # afisam un mesaj prietenos pe formular in loc sa cada in 500.
+            form.add_error(
+                "attachment",
+                "Atasamentul nu a putut fi incarcat. "
+                "Verifica ca este un PDF sau DOCX valid si reincearca. "
+                f"(detaliu tehnic: {type(exc).__name__})"
+            )
+            return self.form_invalid(form)
+
         # Notificare email managerilor
         try:
             notify_managers_new_request(self.object)
@@ -175,14 +187,23 @@ class ApproveLeaveView(ManagerRequiredMixin, FormView):
             messages.error(self.request, "Semnatura nu a putut fi procesata. Reincearca.")
             return self.form_invalid(form)
 
-        # Marcam aprobarea
-        self.leave.mark_approved(self.request.user, note=form.cleaned_data.get("note", ""))
+        try:
+            # Marcam aprobarea
+            self.leave.mark_approved(self.request.user, note=form.cleaned_data.get("note", ""))
 
-        # Salvam semnatura (one-to-one - inlocuim daca exista)
-        Signature.objects.update_or_create(
-            leave_request=self.leave,
-            defaults={"manager": self.request.user, "image": signature_file},
-        )
+            # Salvam semnatura (one-to-one - inlocuim daca exista)
+            Signature.objects.update_or_create(
+                leave_request=self.leave,
+                defaults={"manager": self.request.user, "image": signature_file},
+            )
+        except Exception as exc:
+            form.add_error(
+                None,
+                "Semnatura nu a putut fi salvata. "
+                "Verifica ca ai semnat in caseta sau ai incarcat o imagine valida (PNG/JPG). "
+                f"(detaliu tehnic: {type(exc).__name__})"
+            )
+            return self.form_invalid(form)
 
         try:
             notify_employee_decision(self.leave)

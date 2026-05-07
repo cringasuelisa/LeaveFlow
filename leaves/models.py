@@ -9,9 +9,28 @@ from datetime import date
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.core.files.storage import FileSystemStorage
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
+
+
+def _attachment_storage():
+    """Storage pentru atasamente (PDF/DOCX) - raw resource pe Cloudinary."""
+    from django.conf import settings
+    if getattr(settings, "CLOUDINARY_STORAGE", {}).get("CLOUD_NAME"):
+        from cloudinary_storage.storage import RawMediaCloudinaryStorage
+        return RawMediaCloudinaryStorage()
+    return FileSystemStorage()
+
+
+def _signature_storage():
+    """Storage pentru semnaturi - image resource pe Cloudinary."""
+    from django.conf import settings
+    if getattr(settings, "CLOUDINARY_STORAGE", {}).get("CLOUD_NAME"):
+        from cloudinary_storage.storage import MediaCloudinaryStorage
+        return MediaCloudinaryStorage()
+    return FileSystemStorage()
 
 
 # ---------------------------------------------------------------------------
@@ -105,6 +124,7 @@ class LeaveRequest(models.Model):
 
     attachment = models.FileField(
         upload_to="leaves/attachments/",
+        storage=_attachment_storage,
         blank=True,
         null=True,
         verbose_name="Atasament justificativ (optional)",
@@ -215,6 +235,7 @@ class Signature(models.Model):
     )
     image = models.ImageField(
         upload_to="leaves/signatures/",
+        storage=_signature_storage,
         verbose_name="Imagine semnatura",
         help_text="Stocata in Cloudinary in productie.",
     )
