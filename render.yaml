@@ -12,7 +12,8 @@ services:
     runtime: python
     plan: free
     buildCommand: "./build.sh"
-    startCommand: "gunicorn leaveflow.wsgi:application"
+    # 1 worker + threads - sta in 512MB de RAM al planului free
+    startCommand: "gunicorn leaveflow.wsgi:application --workers 1 --threads 4 --timeout 60 --max-requests 100 --max-requests-jitter 10"
     envVars:
       - key: DJANGO_SECRET_KEY
         generateValue: true
