@@ -444,16 +444,12 @@ class EmailDiagnosticView(LoginRequiredMixin, View):
         if not request.user.is_superuser:
             raise Http404
 
-        api_key = getattr(settings, "EMAIL_HOST_PASSWORD", "") or ""
+        api_key = getattr(settings, "RESEND_API_KEY", "") or ""
         masked = (api_key[:5] + "..." + api_key[-3:]) if len(api_key) > 8 else "(gol/scurt)"
 
         config = {
             "EMAIL_BACKEND": settings.EMAIL_BACKEND,
-            "EMAIL_HOST": getattr(settings, "EMAIL_HOST", "(nu e setat)"),
-            "EMAIL_PORT": getattr(settings, "EMAIL_PORT", "(nu e setat)"),
-            "EMAIL_USE_TLS": getattr(settings, "EMAIL_USE_TLS", False),
-            "EMAIL_HOST_USER": getattr(settings, "EMAIL_HOST_USER", ""),
-            "EMAIL_HOST_PASSWORD (mascat)": masked,
+            "RESEND_API_KEY (mascat)": masked,
             "EMAIL_TIMEOUT": getattr(settings, "EMAIL_TIMEOUT", "(default)"),
             "DEFAULT_FROM_EMAIL": settings.DEFAULT_FROM_EMAIL,
         }

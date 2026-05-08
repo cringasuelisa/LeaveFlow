@@ -172,14 +172,11 @@ RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "LeaveFlow <onboarding@resend.dev>")
 
 if RESEND_API_KEY:
-    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-    EMAIL_HOST = "smtp.resend.com"
-    EMAIL_PORT = 587
-    EMAIL_USE_TLS = True
-    EMAIL_HOST_USER = "resend"
-    EMAIL_HOST_PASSWORD = RESEND_API_KEY
-    # Timeout scurt - daca SMTP nu raspunde rapid, nu blocam workerul
-    EMAIL_TIMEOUT = 10
+    # Folosim API-ul HTTPS al Resend (port 443) ca sa ocolim blocarea SMTP
+    # de pe Render free tier. Implementarea backend-ului este in
+    # leaves/email_backend.py.
+    EMAIL_BACKEND = "leaves.email_backend.ResendHTTPBackend"
+    EMAIL_TIMEOUT = 15
 else:
     # Fara cheie -> tipareste mailul in consola (util in dezvoltare)
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
