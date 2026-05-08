@@ -25,4 +25,7 @@ urlpatterns = [
     # Calendar (manager/admin)
     path("calendar/", views.CalendarPageView.as_view(), name="leave_calendar"),
     path("calendar/events/", views.CalendarEventsView.as_view(), name="leave_calendar_events"),
+
+    # Diagnostic (doar superuser)
+    path("diag/email/", views.EmailDiagnosticView.as_view(), name="diag_email"),
 ]

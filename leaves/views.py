@@ -16,6 +16,9 @@ from django.views.generic import (
 
 from datetime import datetime, timedelta
 
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+
 from .emails import notify_employee_decision, notify_managers_new_request
 from .forms import ApprovalForm, LeaveRequestForm, RegisterForm, RejectionForm
 from .models import LeaveRequest, Signature
@@ -426,6 +429,61 @@ class CalendarEventsView(ManagerRequiredMixin, View):
                 },
             })
         return JsonResponse(events, safe=False)
+
+
+# ---------------------------------------------------------------------------
+# Diagnostic email (admin only) - utilizat la debug pe productie
+# ---------------------------------------------------------------------------
+class EmailDiagnosticView(LoginRequiredMixin, View):
+    """Verifica config-ul de email si trimite un test sincron.
+
+    Acces: doar pentru superuser. Ruteaza la /leaves/diag/email/.
+    """
+
+    def get(self, request):
+        if not request.user.is_superuser:
+            raise Http404
+
+        api_key = getattr(settings, "EMAIL_HOST_PASSWORD", "") or ""
+        masked = (api_key[:5] + "..." + api_key[-3:]) if len(api_key) > 8 else "(gol/scurt)"
+
+        config = {
+            "EMAIL_BACKEND": settings.EMAIL_BACKEND,
+            "EMAIL_HOST": getattr(settings, "EMAIL_HOST", "(nu e setat)"),
+            "EMAIL_PORT": getattr(settings, "EMAIL_PORT", "(nu e setat)"),
+            "EMAIL_USE_TLS": getattr(settings, "EMAIL_USE_TLS", False),
+            "EMAIL_HOST_USER": getattr(settings, "EMAIL_HOST_USER", ""),
+            "EMAIL_HOST_PASSWORD (mascat)": masked,
+            "EMAIL_TIMEOUT": getattr(settings, "EMAIL_TIMEOUT", "(default)"),
+            "DEFAULT_FROM_EMAIL": settings.DEFAULT_FROM_EMAIL,
+        }
+
+        # Trimitere SINCRONA (nu thread) ca sa vedem direct rezultatul.
+        result = "n/a"
+        error = None
+        try:
+            msg = EmailMultiAlternatives(
+                subject="[LeaveFlow] Test diagnostic",
+                body="Acesta este un email de test trimis de la /leaves/diag/email/.",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[request.user.email or "test@example.com"],
+            )
+            sent = msg.send(fail_silently=False)
+            result = f"send() a returnat: {sent} (1 = trimis OK)"
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+
+        # Construim un raspuns text simplu, vizibil in browser
+        lines = ["LeaveFlow - Email Diagnostic", "=" * 40, ""]
+        lines.append("Configurare actuala:")
+        for k, v in config.items():
+            lines.append(f"  {k} = {v}")
+        lines.append("")
+        lines.append(f"Trimitere catre: {request.user.email}")
+        lines.append(f"Rezultat: {result}")
+        if error:
+            lines.append(f"Eroare: {error}")
+        return HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8")
 
 
 # ---------------------------------------------------------------------------
