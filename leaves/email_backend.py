@@ -67,6 +67,10 @@ class ResendHTTPBackend(BaseEmailBackend):
             headers={
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
+                # Cloudflare blocheaza User-Agent-ul default Python-urllib;
+                # punem unul "normal" ca sa treaca de protectie.
+                "User-Agent": "LeaveFlow/1.0 (+https://leaveflow-yx0s.onrender.com)",
+                "Accept": "application/json",
             },
             method="POST",
         )
