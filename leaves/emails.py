@@ -1,4 +1,4 @@
-"""Helper pentru trimiterea emailurilor (via Resend SMTP)."""
+"""Trimitere emailuri prin backend-ul Resend (HTTP)."""
 import logging
 import threading
 
@@ -10,17 +10,12 @@ from django.urls import reverse
 logger = logging.getLogger(__name__)
 
 
-def _absolute_url(path: str) -> str:
-    """Construieste un URL absolut pentru link-urile din email."""
-    host = getattr(settings, "PUBLIC_BASE_URL", "")
-    if not host:
-        # fallback - merge bine in dezvoltare locala
-        host = "http://127.0.0.1:8000"
+def _absolute_url(path):
+    host = getattr(settings, "PUBLIC_BASE_URL", "") or "http://127.0.0.1:8000"
     return host.rstrip("/") + path
 
 
-def _send_sync(subject: str, to: list, template_base: str, context: dict) -> None:
-    """Trimitere efectiva (apelata in thread)."""
+def _send_sync(subject, to, template_base, context):
     try:
         if not to:
             return
@@ -34,17 +29,12 @@ def _send_sync(subject: str, to: list, template_base: str, context: dict) -> Non
         )
         msg.attach_alternative(html_body, "text/html")
         msg.send(fail_silently=True)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.warning("Email failed (%s): %s", template_base, e)
 
 
-def _send(subject: str, to: list, template_base: str, context: dict) -> None:
-    """Lanseaza trimiterea intr-un thread daemon.
-
-    Astfel request-ul HTTP nu mai asteapta SMTP-ul, returneaza imediat raspunsul.
-    Pierdem garantia ca emailul a plecat (poate fi chiar avantaj la presiune mare),
-    dar pentru un proiect academic e suficient.
-    """
+def _send(subject, to, template_base, context):
+    """Lanseaza trimiterea intr-un thread daemon ca sa nu blocheze request-ul."""
     if not to:
         return
     t = threading.Thread(
@@ -55,8 +45,7 @@ def _send(subject: str, to: list, template_base: str, context: dict) -> None:
     t.start()
 
 
-def notify_managers_new_request(leave_request) -> None:
-    """Trimite mail tuturor managerilor cand un angajat creeaza o cerere."""
+def notify_managers_new_request(leave_request):
     from .models import CustomUser
 
     managers = CustomUser.objects.filter(role=CustomUser.Role.MANAGER, is_active=True)
@@ -77,8 +66,7 @@ def notify_managers_new_request(leave_request) -> None:
     )
 
 
-def notify_employee_decision(leave_request) -> None:
-    """Trimite mail angajatului cand cererea e aprobata sau respinsa."""
+def notify_employee_decision(leave_request):
     employee = leave_request.employee
     if not employee.email:
         return
@@ -90,10 +78,9 @@ def notify_employee_decision(leave_request) -> None:
         "is_approved": is_approved,
         "url": _absolute_url(reverse("leave_detail", args=[leave_request.pk])),
     }
-    subject = "[LeaveFlow] Cererea ta a fost aprobata" if is_approved else "[LeaveFlow] Cererea ta a fost respinsa"
-    _send(
-        subject=subject,
-        to=[employee.email],
-        template_base="decision",
-        context=context,
+    subject = (
+        "[LeaveFlow] Cererea ta a fost aprobata"
+        if is_approved
+        else "[LeaveFlow] Cererea ta a fost respinsa"
     )
+    _send(subject=subject, to=[employee.email], template_base="decision", context=context)

@@ -1,12 +1,9 @@
-"""Views pentru LeaveFlow.
+from datetime import datetime, timedelta
 
-Folosim class-based views unde se preteaza si decoram cu mixin-uri pentru
-controlul accesului bazat pe rol.
-"""
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.http import HttpResponse, Http404, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views import View
@@ -14,20 +11,12 @@ from django.views.generic import (
     CreateView, DetailView, FormView, ListView, RedirectView, TemplateView,
 )
 
-from datetime import datetime, timedelta
-
-from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
-
 from .emails import notify_employee_decision, notify_managers_new_request
 from .forms import ApprovalForm, LeaveRequestForm, RegisterForm, RejectionForm
 from .models import LeaveRequest, Signature
 from .templatetags.leave_extras import user_color
 
 
-# ---------------------------------------------------------------------------
-# Auth
-# ---------------------------------------------------------------------------
 class RegisterView(FormView):
     template_name = "registration/register.html"
     form_class = RegisterForm
@@ -40,9 +29,6 @@ class RegisterView(FormView):
         return super().form_valid(form)
 
 
-# ---------------------------------------------------------------------------
-# Mixins de rol
-# ---------------------------------------------------------------------------
 class ManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     raise_exception = False
 
@@ -57,12 +43,7 @@ class ManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
         return super().handle_no_permission()
 
 
-# ---------------------------------------------------------------------------
-# Dashboard
-# ---------------------------------------------------------------------------
 class DashboardView(LoginRequiredMixin, TemplateView):
-    """Decide ce dashboard sa randeze in functie de rol."""
-
     def get_template_names(self):
         u = self.request.user
         if u.is_manager or u.is_admin_role or u.is_superuser:
@@ -76,27 +57,19 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             qs = LeaveRequest.objects.select_related("employee")
             ctx["pending_requests"] = qs.filter(status=LeaveRequest.Status.PENDING)
             ctx["recent_decisions"] = qs.exclude(status=LeaveRequest.Status.PENDING)[:10]
-            ctx["stats"] = {
-                "total": qs.count(),
-                "pending": qs.filter(status=LeaveRequest.Status.PENDING).count(),
-                "approved": qs.filter(status=LeaveRequest.Status.APPROVED).count(),
-                "rejected": qs.filter(status=LeaveRequest.Status.REJECTED).count(),
-            }
         else:
             qs = LeaveRequest.objects.filter(employee=u)
             ctx["my_requests"] = qs[:10]
-            ctx["stats"] = {
-                "total": qs.count(),
-                "pending": qs.filter(status=LeaveRequest.Status.PENDING).count(),
-                "approved": qs.filter(status=LeaveRequest.Status.APPROVED).count(),
-                "rejected": qs.filter(status=LeaveRequest.Status.REJECTED).count(),
-            }
+
+        ctx["stats"] = {
+            "total": qs.count(),
+            "pending": qs.filter(status=LeaveRequest.Status.PENDING).count(),
+            "approved": qs.filter(status=LeaveRequest.Status.APPROVED).count(),
+            "rejected": qs.filter(status=LeaveRequest.Status.REJECTED).count(),
+        }
         return ctx
 
 
-# ---------------------------------------------------------------------------
-# CRUD cereri
-# ---------------------------------------------------------------------------
 class LeaveCreateView(LoginRequiredMixin, CreateView):
     model = LeaveRequest
     form_class = LeaveRequestForm
@@ -107,22 +80,22 @@ class LeaveCreateView(LoginRequiredMixin, CreateView):
         try:
             response = super().form_valid(form)
         except Exception as exc:
-            # Daca apare orice problema la upload (Cloudinary, retea, fisier corupt etc.)
-            # afisam un mesaj prietenos pe formular in loc sa cada in 500.
             form.add_error(
                 "attachment",
                 "Atasamentul nu a putut fi incarcat. "
                 "Verifica ca este un PDF sau DOCX valid si reincearca. "
-                f"(detaliu tehnic: {type(exc).__name__})"
+                f"({type(exc).__name__})"
             )
             return self.form_invalid(form)
 
-        # Notificare email managerilor
         try:
             notify_managers_new_request(self.object)
         except Exception:
             pass
-        messages.success(self.request, "Cererea a fost trimisa. Managerii au fost notificati pe email.")
+        messages.success(
+            self.request,
+            "Cererea a fost trimisa. Managerii au fost notificati pe email.",
+        )
         return response
 
     def get_success_url(self):
@@ -165,9 +138,6 @@ class LeaveDetailView(LoginRequiredMixin, DetailView):
         return obj
 
 
-# ---------------------------------------------------------------------------
-# Aprobare / respingere
-# ---------------------------------------------------------------------------
 class ApproveLeaveView(ManagerRequiredMixin, FormView):
     template_name = "leaves/leave_approve.html"
     form_class = ApprovalForm
@@ -191,10 +161,7 @@ class ApproveLeaveView(ManagerRequiredMixin, FormView):
             return self.form_invalid(form)
 
         try:
-            # Marcam aprobarea
             self.leave.mark_approved(self.request.user, note=form.cleaned_data.get("note", ""))
-
-            # Salvam semnatura (one-to-one - inlocuim daca exista)
             Signature.objects.update_or_create(
                 leave_request=self.leave,
                 defaults={"manager": self.request.user, "image": signature_file},
@@ -202,9 +169,8 @@ class ApproveLeaveView(ManagerRequiredMixin, FormView):
         except Exception as exc:
             form.add_error(
                 None,
-                "Semnatura nu a putut fi salvata. "
-                "Verifica ca ai semnat in caseta sau ai incarcat o imagine valida (PNG/JPG). "
-                f"(detaliu tehnic: {type(exc).__name__})"
+                "Semnatura nu a putut fi salvata. Reincearca cu o imagine valida (PNG/JPG). "
+                f"({type(exc).__name__})"
             )
             return self.form_invalid(form)
 
@@ -243,11 +209,7 @@ class RejectLeaveView(ManagerRequiredMixin, FormView):
         return redirect("leave_detail", pk=self.leave.pk)
 
 
-# ---------------------------------------------------------------------------
-# Document oficial + PDF
-# ---------------------------------------------------------------------------
 class LeaveDocumentView(LoginRequiredMixin, DetailView):
-    """Pagina care randeaza o vizualizare tip cerere oficiala (printabila)."""
     model = LeaveRequest
     template_name = "leaves/leave_document.html"
     context_object_name = "leave"
@@ -258,13 +220,11 @@ class LeaveDocumentView(LoginRequiredMixin, DetailView):
         if not (u.is_manager or u.is_admin_role or u.is_superuser or obj.employee_id == u.id):
             raise Http404
         if not obj.is_approved:
-            raise Http404("Documentul oficial e disponibil doar pentru cererile aprobate.")
+            raise Http404("Document disponibil doar pentru cereri aprobate.")
         return obj
 
 
 class LeavePDFView(LoginRequiredMixin, View):
-    """Genereaza un PDF simplu cu detaliile cererii aprobate."""
-
     def get(self, request, pk):
         leave = get_object_or_404(LeaveRequest, pk=pk)
         u = request.user
@@ -273,16 +233,15 @@ class LeavePDFView(LoginRequiredMixin, View):
         if not leave.is_approved:
             raise Http404("PDF disponibil doar pentru cereri aprobate.")
 
-        # Importurile sunt locale ca sa nu incetinim startup-ul daca PDF nu e folosit
         from io import BytesIO
 
+        from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import cm
         from reportlab.platypus import (
-            Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle, Image,
+            Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
         )
-        from reportlab.lib import colors
 
         buf = BytesIO()
         doc = SimpleDocTemplate(
@@ -336,19 +295,20 @@ class LeavePDFView(LoginRequiredMixin, View):
             story.append(Paragraph("Nota manager:", h2))
             story.append(Paragraph(leave.decision_note.replace("\n", "<br/>"), styles["BodyText"]))
 
-        # Semnatura, daca exista
         if hasattr(leave, "signature") and leave.signature.image:
             story.append(Spacer(1, 24))
             story.append(Paragraph("Semnatura manager:", h2))
             try:
                 story.append(Image(leave.signature.image.path, width=6 * cm, height=3 * cm))
             except Exception:
-                # Daca semnatura e in Cloudinary nu avem .path; folosim URL prin requests
                 try:
-                    import requests
-                    r = requests.get(leave.signature.image.url, timeout=10)
-                    if r.ok:
-                        story.append(Image(BytesIO(r.content), width=6 * cm, height=3 * cm))
+                    import urllib.request
+                    req = urllib.request.Request(
+                        leave.signature.image.url,
+                        headers={"User-Agent": "LeaveFlow/1.0"},
+                    )
+                    with urllib.request.urlopen(req, timeout=10) as r:
+                        story.append(Image(BytesIO(r.read()), width=6 * cm, height=3 * cm))
                 except Exception:
                     pass
 
@@ -361,16 +321,11 @@ class LeavePDFView(LoginRequiredMixin, View):
         return response
 
 
-# ---------------------------------------------------------------------------
-# Calendar (manager / admin)
-# ---------------------------------------------------------------------------
 class CalendarPageView(ManagerRequiredMixin, TemplateView):
-    """Pagina cu FullCalendar - vizibila doar pentru manager/admin."""
     template_name = "leaves/calendar.html"
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        # Lista de angajati cu concediu aprobat - pentru legenda
         approved = (
             LeaveRequest.objects
             .filter(status=LeaveRequest.Status.APPROVED)
@@ -384,19 +339,11 @@ class CalendarPageView(ManagerRequiredMixin, TemplateView):
 
 
 class CalendarEventsView(ManagerRequiredMixin, View):
-    """Endpoint JSON cu evenimentele afisate de FullCalendar.
-
-    FullCalendar trimite `start` si `end` ca query params (ISO).
-    `end` la FullCalendar este EXCLUSIV - asa ca pentru concediu inclusiv
-    intre 5 si 8 mai, end devine 9 mai.
-    """
-
     def get(self, request):
         qs = LeaveRequest.objects.filter(
             status=LeaveRequest.Status.APPROVED
         ).select_related("employee")
 
-        # Optional: filtreaza dupa intervalul cerut de calendar
         start_param = request.GET.get("start")
         end_param = request.GET.get("end")
         try:
@@ -415,7 +362,7 @@ class CalendarEventsView(ManagerRequiredMixin, View):
                 "id": lr.id,
                 "title": f"{employee_name} - {lr.get_leave_type_display()}",
                 "start": lr.start_date.isoformat(),
-                # FullCalendar end is exclusive, deci adunam o zi
+                # FullCalendar foloseste end exclusiv, deci adaugam o zi
                 "end": (lr.end_date + timedelta(days=1)).isoformat(),
                 "allDay": True,
                 "backgroundColor": color,
@@ -431,65 +378,10 @@ class CalendarEventsView(ManagerRequiredMixin, View):
         return JsonResponse(events, safe=False)
 
 
-# ---------------------------------------------------------------------------
-# Diagnostic email (admin only) - utilizat la debug pe productie
-# ---------------------------------------------------------------------------
-class EmailDiagnosticView(LoginRequiredMixin, View):
-    """Verifica config-ul de email si trimite un test sincron.
-
-    Acces: doar pentru superuser. Ruteaza la /leaves/diag/email/.
-    """
-
-    def get(self, request):
-        if not request.user.is_superuser:
-            raise Http404
-
-        api_key = getattr(settings, "RESEND_API_KEY", "") or ""
-        masked = (api_key[:5] + "..." + api_key[-3:]) if len(api_key) > 8 else "(gol/scurt)"
-
-        config = {
-            "EMAIL_BACKEND": settings.EMAIL_BACKEND,
-            "RESEND_API_KEY (mascat)": masked,
-            "EMAIL_TIMEOUT": getattr(settings, "EMAIL_TIMEOUT", "(default)"),
-            "DEFAULT_FROM_EMAIL": settings.DEFAULT_FROM_EMAIL,
-        }
-
-        # Trimitere SINCRONA (nu thread) ca sa vedem direct rezultatul.
-        result = "n/a"
-        error = None
-        try:
-            msg = EmailMultiAlternatives(
-                subject="[LeaveFlow] Test diagnostic",
-                body="Acesta este un email de test trimis de la /leaves/diag/email/.",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[request.user.email or "test@example.com"],
-            )
-            sent = msg.send(fail_silently=False)
-            result = f"send() a returnat: {sent} (1 = trimis OK)"
-        except Exception as exc:
-            error = f"{type(exc).__name__}: {exc}"
-
-        # Construim un raspuns text simplu, vizibil in browser
-        lines = ["LeaveFlow - Email Diagnostic", "=" * 40, ""]
-        lines.append("Configurare actuala:")
-        for k, v in config.items():
-            lines.append(f"  {k} = {v}")
-        lines.append("")
-        lines.append(f"Trimitere catre: {request.user.email}")
-        lines.append(f"Rezultat: {result}")
-        if error:
-            lines.append(f"Eroare: {error}")
-        return HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8")
-
-
-# ---------------------------------------------------------------------------
-# Redirect placeholder (pastrat pentru compatibilitate cu pasul 1)
-# ---------------------------------------------------------------------------
 class HomeRedirect(RedirectView):
     pattern_name = "dashboard"
     permanent = False
 
 
-# Functia placeholder ramane importata din urls vechi - dam o redirectie
 def placeholder(request):
     return redirect("dashboard")

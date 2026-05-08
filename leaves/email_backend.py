@@ -1,9 +1,6 @@
-"""Backend custom Django care trimite email prin API-ul HTTP al Resend.
+"""Backend Django care trimite email prin API-ul HTTP al Resend.
 
-Render free tier blocheaza portul 587 (SMTP), dar permite traficul HTTPS pe 443.
-Folosim endpoint-ul https://api.resend.com/emails ca sa ocolim limitarea.
-
-Documentatie API Resend: https://resend.com/docs/api-reference/emails/send-email
+Folosit ca alternativa la SMTP pentru ca portul 587 e blocat pe Render free tier.
 """
 import json
 import urllib.error
@@ -14,8 +11,6 @@ from django.core.mail.backends.base import BaseEmailBackend
 
 
 class ResendHTTPBackend(BaseEmailBackend):
-    """Implementare minima a unui email backend Django folosind API-ul Resend."""
-
     API_URL = "https://api.resend.com/emails"
 
     def __init__(self, fail_silently=False, **kwargs):
@@ -37,7 +32,6 @@ class ResendHTTPBackend(BaseEmailBackend):
         return count
 
     def _send_one(self, message):
-        # Identificam HTML-ul (daca exista) printre alternatives
         html_body = None
         for content, mimetype in getattr(message, "alternatives", []) or []:
             if mimetype == "text/html":
@@ -67,9 +61,7 @@ class ResendHTTPBackend(BaseEmailBackend):
             headers={
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
-                # Cloudflare blocheaza User-Agent-ul default Python-urllib;
-                # punem unul "normal" ca sa treaca de protectie.
-                "User-Agent": "LeaveFlow/1.0 (+https://leaveflow-yx0s.onrender.com)",
+                "User-Agent": "LeaveFlow/1.0",
                 "Accept": "application/json",
             },
             method="POST",
@@ -78,7 +70,6 @@ class ResendHTTPBackend(BaseEmailBackend):
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 resp.read()
         except urllib.error.HTTPError as exc:
-            # Citim corpul pentru detalii cand Resend ne raspunde cu 4xx/5xx
             body = ""
             try:
                 body = exc.read().decode("utf-8", errors="replace")

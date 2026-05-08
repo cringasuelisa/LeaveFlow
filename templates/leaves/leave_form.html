@@ -65,18 +65,15 @@
 
 {% block extra_js %}
 <script>
-// --- Datele cererii: end_date >= start_date ---
 (function() {
   const startInput = document.querySelector('input[type="date"][name="start_date"]');
   const endInput = document.querySelector('input[type="date"][name="end_date"]');
   if (!startInput || !endInput) return;
 
-  // Functie ce sincronizeaza min-ul lui end_date cu valoarea lui start_date
   function syncEndMin() {
     const v = startInput.value;
     if (v) {
       endInput.min = v;
-      // daca end era selectat dar e acum mai mic, il resetam la valoarea de start
       if (endInput.value && endInput.value < v) {
         endInput.value = v;
       }
@@ -87,11 +84,9 @@
 
   startInput.addEventListener('change', syncEndMin);
   startInput.addEventListener('input', syncEndMin);
-  // sincronizeaza si la incarcarea paginii (in caz de form re-redat dupa eroare)
   syncEndMin();
 })();
 
-// --- Validare atasament ---
 (function() {
   const input = document.querySelector('input[type="file"][name="attachment"]');
   const warning = document.getElementById('attach-warning');

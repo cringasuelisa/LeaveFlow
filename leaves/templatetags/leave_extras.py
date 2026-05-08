@@ -1,4 +1,4 @@
-"""Filtre custom pentru template-uri."""
+"""Filtre custom pentru template-uri (culori si initiale)."""
 import hashlib
 
 from django import template
@@ -6,34 +6,20 @@ from django import template
 register = template.Library()
 
 
-# Paleta de culori vesele dar bine contrastate cu textul alb
 COLOR_PALETTE = [
-    "#0d6efd",  # albastru
-    "#198754",  # verde
-    "#fd7e14",  # portocaliu
-    "#6f42c1",  # mov
-    "#d63384",  # roz
-    "#20c997",  # turcoaz
-    "#dc3545",  # rosu
-    "#0dcaf0",  # cyan
-    "#6610f2",  # indigo
-    "#e83e8c",  # magenta
-    "#28a745",  # verde-2
-    "#17a2b8",  # info
-    "#ff6b6b",  # coral
-    "#5e60ce",  # violet
-    "#ffa94d",  # piersica
+    "#0d6efd", "#198754", "#fd7e14", "#6f42c1", "#d63384",
+    "#20c997", "#dc3545", "#0dcaf0", "#6610f2", "#e83e8c",
+    "#28a745", "#17a2b8", "#ff6b6b", "#5e60ce", "#ffa94d",
 ]
 
 
-def _hash_to_index(value: str, modulo: int) -> int:
+def _hash_to_index(value, modulo):
     h = hashlib.md5(value.encode("utf-8")).hexdigest()
     return int(h[:8], 16) % modulo
 
 
 @register.filter
-def user_color(user) -> str:
-    """Culoare deterministica pentru un user, in functie de username."""
+def user_color(user):
     if user is None:
         return COLOR_PALETTE[0]
     key = getattr(user, "username", None) or str(user)
@@ -41,8 +27,7 @@ def user_color(user) -> str:
 
 
 @register.filter
-def user_initials(user) -> str:
-    """Maxim 2 caractere: initiale din nume/prenume sau primele 2 din username."""
+def user_initials(user):
     if user is None:
         return "?"
     first = getattr(user, "first_name", "") or ""
