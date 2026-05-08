@@ -3,6 +3,7 @@
 Aplicatie web pentru gestionarea cererilor de concediu intr-o organizatie.
 
 **Live:** <https://leaveflow-yx0s.onrender.com/leaves/>
+**Demo video:** <https://youtu.be/iHOIM-MOQp8>
 
 ## Stack
 
