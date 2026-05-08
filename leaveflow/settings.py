@@ -178,6 +178,8 @@ if RESEND_API_KEY:
     EMAIL_USE_TLS = True
     EMAIL_HOST_USER = "resend"
     EMAIL_HOST_PASSWORD = RESEND_API_KEY
+    # Timeout scurt - daca SMTP nu raspunde rapid, nu blocam workerul
+    EMAIL_TIMEOUT = 10
 else:
     # Fara cheie -> tipareste mailul in consola (util in dezvoltare)
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

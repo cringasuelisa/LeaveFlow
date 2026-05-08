@@ -1,8 +1,13 @@
 """Helper pentru trimiterea emailurilor (via Resend SMTP)."""
+import logging
+import threading
+
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.urls import reverse
+
+logger = logging.getLogger(__name__)
 
 
 def _absolute_url(path: str) -> str:
@@ -14,19 +19,40 @@ def _absolute_url(path: str) -> str:
     return host.rstrip("/") + path
 
 
-def _send(subject: str, to: list[str], template_base: str, context: dict) -> None:
+def _send_sync(subject: str, to: list, template_base: str, context: dict) -> None:
+    """Trimitere efectiva (apelata in thread)."""
+    try:
+        if not to:
+            return
+        text_body = render_to_string(f"emails/{template_base}.txt", context)
+        html_body = render_to_string(f"emails/{template_base}.html", context)
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=to,
+        )
+        msg.attach_alternative(html_body, "text/html")
+        msg.send(fail_silently=True)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Email failed (%s): %s", template_base, e)
+
+
+def _send(subject: str, to: list, template_base: str, context: dict) -> None:
+    """Lanseaza trimiterea intr-un thread daemon.
+
+    Astfel request-ul HTTP nu mai asteapta SMTP-ul, returneaza imediat raspunsul.
+    Pierdem garantia ca emailul a plecat (poate fi chiar avantaj la presiune mare),
+    dar pentru un proiect academic e suficient.
+    """
     if not to:
         return
-    text_body = render_to_string(f"emails/{template_base}.txt", context)
-    html_body = render_to_string(f"emails/{template_base}.html", context)
-    msg = EmailMultiAlternatives(
-        subject=subject,
-        body=text_body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=to,
+    t = threading.Thread(
+        target=_send_sync,
+        args=(subject, to, template_base, context),
+        daemon=True,
     )
-    msg.attach_alternative(html_body, "text/html")
-    msg.send(fail_silently=True)
+    t.start()
 
 
 def notify_managers_new_request(leave_request) -> None:
